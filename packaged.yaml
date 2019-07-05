@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS Training Final Project - Main Part
+Parameters:
+  KeyPair:
+    Type: String
+Resources:
+  EC2:
+    DependsOn: VPC
+    Properties:
+      Parameters:
+        AppTierSecuityGroup:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.AppTierSecuityGroup
+        AppTierSubnet:
+          Fn::Join:
+          - ','
+          - - Fn::GetAtt:
+              - VPC
+              - Outputs.AppTierSubnet1
+            - Fn::GetAtt:
+              - VPC
+              - Outputs.AppTierSubnet2
+        KeyPair:
+          Ref: KeyPair
+        LoadBalancerSecuityGroup:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.LoadBalancerSecuityGroup
+        WebTierSecuityGroup:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.WebTierSecuityGroup
+        WebTierSubnet:
+          Fn::Join:
+          - ','
+          - - Fn::GetAtt:
+              - VPC
+              - Outputs.WebTierSubnet1
+            - Fn::GetAtt:
+              - VPC
+              - Outputs.WebTierSubnet2
+      Tags:
+      - Key: DedicatedName
+        Value: FinalProject
+      TemplateURL: https://s3.amazonaws.com/qltrail-lab-125-1542305571/15cba9939b0f359d16e9a83b0b211987.template
+    Type: AWS::CloudFormation::Stack
+  RDS:
+    DependsOn: VPC
+    Properties:
+      Parameters:
+        DatabaseTierSecuityGroup:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.DatabaseTierSecuityGroup
+        DatabaseTierSubnet:
+          Fn::Join:
+          - ','
+          - - Fn::GetAtt:
+              - VPC
+              - Outputs.DatabaseTierSubnet1
+            - Fn::GetAtt:
+              - VPC
+              - Outputs.DatabaseTierSubnet2
+      Tags:
+      - Key: DedicatedName
+        Value: FinalProject
+      TemplateURL: https://s3.amazonaws.com/qltrail-lab-125-1542305571/93c9ca5dcfb2cac42be0cbb213062e49.template
+    Type: AWS::CloudFormation::Stack
+  S3:
+    Properties:
+      Tags:
+      - Key: DedicatedName
+        Value: FinalProject
+      TemplateURL: https://s3.amazonaws.com/qltrail-lab-125-1542305571/deb67f8378d414d3bbab015b0ea7294e.template
+    Type: AWS::CloudFormation::Stack
+  VPC:
+    Properties:
+      Tags:
+      - Key: DedicatedName
+        Value: FinalProject
+      TemplateURL: https://s3.amazonaws.com/qltrail-lab-125-1542305571/bbca547395a91ee678ca6c27218ddb63.template
+    Type: AWS::CloudFormation::Stack

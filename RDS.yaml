@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS Training Final Project - RDS Part
+Parameters:
+    DatabaseTierSecuityGroup:
+        Type: String
+    DatabaseTierSubnet:
+        Type: CommaDelimitedList
+Resources:
+    DatabaseTierSubnetGroup:
+        Type: AWS::RDS::DBSubnetGroup
+        Properties:
+          DBSubnetGroupDescription: MySQL 5.6 RDS Subnet Group
+          SubnetIds: !Ref DatabaseTierSubnet
+    DatabaseTierInstance:
+        Type: AWS::RDS::DBInstance
+        Properties:
+            DBName: GoGreenMySQLDatabase
+            Engine: MySQL
+            EngineVersion: 5.6
+            AllocatedStorage: 4200
+            Iops: 21000
+            MultiAZ: true
+            StorageEncrypted: true
+            MasterUsername: GoGreen
+            MasterUserPassword: Passw0rd
+            DBInstanceClass: db.r3.2xlarge
+            PubliclyAccessible: false
+            VPCSecurityGroups:
+            - !Ref DatabaseTierSecuityGroup
+            DBSubnetGroupName: !Ref DatabaseTierSubnetGroup

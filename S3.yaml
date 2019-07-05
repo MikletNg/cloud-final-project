@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS Training Final Project - S3 Part
+Resources:
+    S3:
+        Type: AWS::S3::Bucket
+        DeletionPolicy: Retain
+        Properties:
+            LifecycleConfiguration:
+                Rules:
+                - Status: Enabled
+                  Prefix: glacier
+                  Id: S3ToGlacierRule
+                  ExpirationInDays: 1825
+                  Transitions:
+                  - StorageClass: Glacier
+                    TransitionInDays: 150
+Outputs:
+    BucketName:
+        Value: !Ref S3

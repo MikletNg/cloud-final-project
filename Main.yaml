@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS Training Final Project - Main Part
+Parameters:
+    KeyPair:
+        Type: String
+Resources:
+    VPC:
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        Tags:
+          - Key: DedicatedName
+            Value: FinalProject
+        TemplateURL: 'VPC.yaml'
+    EC2:
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        Parameters:
+          KeyPair: !Ref KeyPair
+          AppTierSecuityGroup: !GetAtt VPC.Outputs.AppTierSecuityGroup
+          WebTierSecuityGroup: !GetAtt VPC.Outputs.WebTierSecuityGroup
+          LoadBalancerSecuityGroup: !GetAtt VPC.Outputs.LoadBalancerSecuityGroup
+          AppTierSubnet:
+            !Join
+              - ','
+              - - !GetAtt VPC.Outputs.AppTierSubnet1
+                - !GetAtt VPC.Outputs.AppTierSubnet2
+          WebTierSubnet:
+            !Join
+              - ','
+              - - !GetAtt VPC.Outputs.WebTierSubnet1
+                - !GetAtt VPC.Outputs.WebTierSubnet2
+        Tags:
+          - Key: DedicatedName
+            Value: FinalProject
+        TemplateURL: 'EC2.yaml'
+      DependsOn: VPC
+    RDS:
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        Parameters:
+          DatabaseTierSecuityGroup: !GetAtt VPC.Outputs.DatabaseTierSecuityGroup
+          DatabaseTierSubnet:
+            !Join
+              - ','
+              - - !GetAtt VPC.Outputs.DatabaseTierSubnet1
+                - !GetAtt VPC.Outputs.DatabaseTierSubnet2
+        Tags:
+            - Key: DedicatedName
+              Value: FinalProject
+        TemplateURL: 'RDS.yaml'
+      DependsOn: VPC
+    S3:
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        Tags:
+          - Key: DedicatedName
+            Value: FinalProject
+        TemplateURL: 'S3.yaml'
+      
+    

@@ -1,0 +1,226 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS Training Final Project - EC2 Part
+Parameters:
+    AMI:
+        Type: String
+        Default: ami-03a47595d0126bd82
+    KeyPair:
+        Type: String
+        Description: Name of EC2 key pair
+    WebTierSecuityGroup:
+        Type: String
+    AppTierSecuityGroup:
+        Type: String
+    LoadBalancerSecuityGroup:
+        Type: String
+    WebTierSubnet:
+        Type: CommaDelimitedList
+    AppTierSubnet:
+        Type: CommaDelimitedList
+Resources:
+    #################################
+    #           Web Tier            #
+    #################################
+    WebAutoScalingLaunchConfiguration:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        DependsOn: WebTierLoadBalancer
+        Properties:
+          AssociatePublicIpAddress: true
+          ImageId: !Ref AMIf
+          InstanceType: t2.large
+          KeyName: !Ref KeyPair
+          LaunchConfigurationName: WebTierAutoScalingLaunchConfiguration
+          SecurityGroups:
+            - !Ref WebTierSecuityGroup
+          UserData:
+             Fn::Base64: !Sub |
+              #!/bin/bash
+              zypper install -y httpd
+              systemctl start apache2.service
+    WebTierAutoScalingGroup:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        DependsOn: WebAutoScalingLaunchConfiguration
+        Properties:
+          AutoScalingGroupName: Web Tier Auto Scaling Group
+          AvailabilityZones:
+            - !Select [ 0, !GetAZs '']
+            - !Select [ 1, !GetAZs '']
+          DesiredCapacity: 2
+          HealthCheckGracePeriod: 300
+          HealthCheckType: ELB
+          LoadBalancerNames: 
+            - !Ref WebTierLoadBalancer
+          LaunchConfigurationName: !Ref WebAutoScalingLaunchConfiguration
+          MaxSize: 6
+          MinSize: 2
+          VPCZoneIdentifier: !Ref WebTierSubnet
+          Tags:
+            - Key: Name
+              Value: web-tier
+              PropagateAtLaunch: true
+    WebTierScalingUpPolicy:
+        Type: AWS::AutoScaling::ScalingPolicy
+        Properties:
+          AutoScalingGroupName: !Ref WebTierAutoScalingGroup
+          AdjustmentType: ChangeInCapacity
+          ScalingAdjustment: 1
+          Cooldown: 60
+    WebTierScalingDownPolicy:
+        Type: AWS::AutoScaling::ScalingPolicy
+        Properties:
+          AutoScalingGroupName: !Ref WebTierAutoScalingGroup
+          AdjustmentType: ChangeInCapacity
+          ScalingAdjustment: -1
+          Cooldown: 60
+    WebTierNetworkInAlarmHigh:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmDescription: Scale-up if Network in > 750Mbps for 5 minutes
+        MetricName: NetworkIn
+        Namespace: AWS/EC2
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 98304000
+        AlarmActions:
+        - !Ref WebTierScalingUpPolicy
+        Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref WebTierAutoScalingGroup
+        ComparisonOperator: GreaterThanThreshold  
+    WebTierNetworkInAlarmLow:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmDescription: Scale-down if Network in < 300Mbps for 5 minutes
+        MetricName: NetworkIn
+        Namespace: AWS/EC2
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 39321600
+        AlarmActions:
+        - !Ref WebTierScalingDownPolicy
+        Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref WebTierAutoScalingGroup
+        ComparisonOperator: LessThanThreshold  
+    WebTierLoadBalancer:
+        Type: AWS::ElasticLoadBalancing::LoadBalancer
+        Properties:
+            SecurityGroups:
+            - !Ref LoadBalancerSecuityGroup
+            HealthCheck:
+              HealthyThreshold: 2
+              Interval: 15
+              Target: TCP:80
+              Timeout: 5
+              UnhealthyThreshold: 3
+            Subnets: !Ref WebTierSubnet
+            CrossZone: true
+            Listeners:
+            - LoadBalancerPort: 80
+              InstancePort: 80
+              Protocol: HTTP
+    #################################
+    #           App Tier            #
+    #################################
+    AppAutoScalingLaunchConfiguration:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        DependsOn: AppTierLoadBalancer
+        Properties:
+          AssociatePublicIpAddress: true
+          ImageId: !Ref AMI
+          InstanceType: r3.2xlarge
+          KeyName: !Ref KeyPair
+          LaunchConfigurationName: AppTierAutoScalingLaunchConfiguration
+          SecurityGroups:
+            - !Ref AppTierSecuityGroup
+          UserData:
+             Fn::Base64: !Sub |
+              #!/bin/bash
+              zypper install -y httpd
+              systemctl start apache2.service
+    AppTierAutoScalingGroup:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        DependsOn: AppAutoScalingLaunchConfiguration
+        Properties:
+          AutoScalingGroupName: App Tier Auto Scaling Group
+          AvailabilityZones:
+            - !Select [ 0, !GetAZs '']
+            - !Select [ 1, !GetAZs '']
+          DesiredCapacity: 2
+          HealthCheckGracePeriod: 300
+          HealthCheckType: ELB
+          LoadBalancerNames: 
+            - !Ref AppTierLoadBalancer
+          LaunchConfigurationName: !Ref AppAutoScalingLaunchConfiguration
+          MaxSize: 6
+          MinSize: 2
+          VPCZoneIdentifier: !Ref AppTierSubnet
+          Tags:
+            - Key: Name
+              Value: app-tier
+              PropagateAtLaunch: true
+    AppTierScalingUpPolicy:
+        Type: AWS::AutoScaling::ScalingPolicy
+        Properties:
+          AutoScalingGroupName: !Ref AppTierAutoScalingGroup
+          AdjustmentType: ChangeInCapacity
+          ScalingAdjustment: 1
+          Cooldown: 300
+    AppTierScalingDownPolicy:
+        Type: AWS::AutoScaling::ScalingPolicy
+        Properties:
+          AutoScalingGroupName: !Ref AppTierAutoScalingGroup
+          AdjustmentType: ChangeInCapacity
+          ScalingAdjustment: -1
+          Cooldown: 300
+    AppTierNetworkInAlarmHigh:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmDescription: Scale-up if CPU > 75% for 5 minutes
+        MetricName: CPUUtilization
+        Namespace: AWS/EC2
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 75
+        AlarmActions:
+        - !Ref AppTierScalingUpPolicy
+        Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AppTierAutoScalingGroup
+        ComparisonOperator: GreaterThanThreshold
+    AppTierCPUAlarmLow:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmDescription: Scale-down if CPU < 30% for 5 minutes
+        MetricName: CPUUtilization
+        Namespace: AWS/EC2
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 30
+        AlarmActions: 
+        - !Ref AppTierScalingDownPolicy
+        Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AppTierAutoScalingGroup
+        ComparisonOperator: LessThanThreshold
+    AppTierLoadBalancer:
+        Type: AWS::ElasticLoadBalancing::LoadBalancer
+        Properties:
+            SecurityGroups:
+            - !Ref LoadBalancerSecuityGroup
+            HealthCheck:
+              HealthyThreshold: 2
+              Interval: 15
+              Target: TCP:80
+              Timeout: 5
+              UnhealthyThreshold: 3
+            Subnets: !Ref AppTierSubnet
+            CrossZone: true
+            Listeners:
+            - LoadBalancerPort: 80
+              InstancePort: 80
+              Protocol: HTTP

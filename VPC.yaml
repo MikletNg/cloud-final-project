@@ -1,0 +1,328 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS Training Final Project - VPC Part
+Resources:
+    #################################
+    #               VPC             #
+    #################################
+    VPC:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: 10.0.0.0/16
+            Tags:
+                - Key: Name
+                  Value: GreenGo VPC
+    #################################
+    #           All Subnet          #
+    #################################
+    NatSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 0, !GetAZs '']
+            CidrBlock: 10.0.0.0/24
+            MapPublicIpOnLaunch: true
+            Tags:
+            - Key: Name
+              Value: NAT Public Subnet 1
+    NatSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 1, !GetAZs '']
+            CidrBlock: 10.0.10.0/24
+            MapPublicIpOnLaunch: true
+            Tags:
+            - Key: Name
+              Value: NAT Public Subnet 2
+    WebTierSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 0, !GetAZs '']
+            CidrBlock: 10.0.20.0/24
+            MapPublicIpOnLaunch: true
+            Tags:
+            - Key: Name
+              Value: Web Tier Private Subnet 1
+    WebTierSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 1, !GetAZs '']
+            CidrBlock: 10.0.30.0/24
+            MapPublicIpOnLaunch: true
+            Tags:
+            - Key: Name
+              Value: Web Tier Private Subnet 2
+    AppTierSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 0, !GetAZs '']
+            CidrBlock: 10.0.40.0/24
+            MapPublicIpOnLaunch: true
+            Tags:
+            - Key: Name
+              Value: App Tier Private Subnet 1
+    AppTierSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 1, !GetAZs '']
+            CidrBlock: 10.0.50.0/24
+            MapPublicIpOnLaunch: true
+            Tags:
+            - Key: Name
+              Value: App Tier Private Subnet 2
+    DatabaseTierSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 0, !GetAZs '']
+            CidrBlock: 10.0.60.0/24
+            MapPublicIpOnLaunch: true
+            Tags:
+            - Key: Name
+              Value: Database Tier Private Subnet 1
+    DatabaseTierSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 1, !GetAZs '']
+            CidrBlock: 10.0.70.0/24
+            MapPublicIpOnLaunch: true
+            Tags:
+            - Key: Name
+              Value: Database Tier Private Subnet 2
+    #################################
+    #         Gateway & EIP         #
+    #################################
+    EIP1:
+        Type: AWS::EC2::EIP
+    EIP2:
+        Type: AWS::EC2::EIP
+        
+    InternetGateway:
+        Type: AWS::EC2::InternetGateway
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: GreenGo VPC InternetGateway
+    InternetGatewayAttachment:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            InternetGatewayId: !Ref InternetGateway
+            VpcId: !Ref VPC
+            
+    NATGateway1:
+        Type: AWS::EC2::NatGateway
+        Properties: 
+          AllocationId: !GetAtt EIP1.AllocationId
+          SubnetId: !Ref NatSubnet1
+          Tags: 
+            - Key: Name
+              Value: NAT Gateway 1
+    NATGateway2:
+        Type: AWS::EC2::NatGateway
+        Properties: 
+          AllocationId: !GetAtt EIP2.AllocationId
+          SubnetId: !Ref NatSubnet2
+          Tags: 
+            - Key: Name
+              Value: NAT Gateway 2
+    #################################
+    #           Route Table         #
+    #################################
+    PublicRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties: 
+          VpcId: !Ref VPC
+          Tags:
+            - Key: Name
+              Value: GreenGo VPC Public Route Table
+    PrivateRouteTable1:
+        Type: AWS::EC2::RouteTable
+        Properties: 
+          VpcId: !Ref VPC
+          Tags:
+            - Key: Name
+              Value: GreenGo VPC Private Route Table 1
+    PrivateRouteTable2:
+        Type: AWS::EC2::RouteTable
+        Properties: 
+          VpcId: !Ref VPC
+          Tags:
+            - Key: Name
+              Value: GreenGo VPC Private Route Table 2
+              
+    PublicRoute:
+        Type: AWS::EC2::Route
+        Properties:
+          DestinationCidrBlock: 0.0.0.0/0
+          GatewayId: !Ref InternetGateway
+          RouteTableId: !Ref PublicRouteTable
+    PrivateRoute1:
+        Type: AWS::EC2::Route
+        Properties:
+          DestinationCidrBlock: 0.0.0.0/0
+          NatGatewayId: !Ref NATGateway1
+          RouteTableId: !Ref PrivateRouteTable1
+    PrivateRoute2:
+        Type: AWS::EC2::Route
+        Properties:
+          DestinationCidrBlock: 0.0.0.0/0
+          NatGatewayId: !Ref NATGateway2
+          RouteTableId: !Ref PrivateRouteTable2
+          
+    NatGatewayRouteTableeAssociation1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          RouteTableId: !Ref PublicRouteTable
+          SubnetId: !Ref NatSubnet1
+    NatGatewayRouteTableeAssociation2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties: 
+          RouteTableId: !Ref PublicRouteTable
+          SubnetId: !Ref NatSubnet2
+    
+    WebSubnetRouteTableeAssociation1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties: 
+          RouteTableId: !Ref PrivateRouteTable1
+          SubnetId: !Ref WebTierSubnet1
+    WebSubnetRouteTableeAssociation2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties: 
+          RouteTableId: !Ref PrivateRouteTable2
+          SubnetId: !Ref WebTierSubnet2
+          
+    AppSubnetRouteTableeAssociation1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties: 
+          RouteTableId: !Ref PrivateRouteTable1
+          SubnetId: !Ref AppTierSubnet1
+    AppSubnetRouteTableeAssociation2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties: 
+          RouteTableId: !Ref PrivateRouteTable2
+          SubnetId: !Ref AppTierSubnet2
+          
+    DatabaseSubnetRouteTableeAssociation1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties: 
+          RouteTableId: !Ref PrivateRouteTable1
+          SubnetId: !Ref DatabaseTierSubnet1
+    DatabaseSubnetRouteTableeAssociation2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties: 
+          RouteTableId: !Ref PrivateRouteTable2
+          SubnetId: !Ref DatabaseTierSubnet2
+          
+    #################################
+    #        Security Group         #
+    #################################
+    WebTierSecuityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties: 
+          GroupName: Web Tier Security Group
+          GroupDescription: Web Tier Security Group
+          SecurityGroupIngress:
+            - CidrIp: 0.0.0.0/0
+              FromPort: 80
+              ToPort: 80
+              IpProtocol: tcp
+            - CidrIp: 0.0.0.0/0
+              FromPort: 443
+              ToPort: 443
+              IpProtocol: tcp
+            - CidrIp: 0.0.0.0/0
+              FromPort: 22
+              ToPort: 22
+              IpProtocol: tcp
+          Tags:
+            - Key: Name
+              Value: web-tier
+          VpcId: !Ref VPC
+    AppTierSecuityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties: 
+          GroupName: App Tier Security Group
+          GroupDescription: App Tier Security Group
+          SecurityGroupIngress:
+            - SourceSecurityGroupId: !Ref WebTierSecuityGroup
+              FromPort: 80
+              ToPort: 80
+              IpProtocol: tcp
+            - SourceSecurityGroupId: !Ref WebTierSecuityGroup
+              FromPort: 443
+              ToPort: 443
+              IpProtocol: tcp
+            - SourceSecurityGroupId: !Ref WebTierSecuityGroup
+              FromPort: 22
+              ToPort: 22
+              IpProtocol: tcp
+          Tags:
+            - Key: Name
+              Value: app-tier
+          VpcId: !Ref VPC
+    DatabaseTierSecuityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties: 
+          GroupName: Database Tier Security Group
+          GroupDescription: Database Tier Security Group
+          SecurityGroupIngress:
+            - SourceSecurityGroupId: !Ref AppTierSecuityGroup
+              FromPort: 3306
+              ToPort: 3306
+              IpProtocol: tcp
+          Tags:
+            - Key: Name
+              Value: app-tier
+          VpcId: !Ref VPC
+    LoadBalancerSecuityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties: 
+          GroupName: LoadBalancer Security Group
+          GroupDescription: LoadBalancer Security Group
+          SecurityGroupIngress:
+            - CidrIp: 10.0.0.0/16
+              FromPort: 80
+              ToPort: 80
+              IpProtocol: tcp
+          SecurityGroupEgress:
+            - DestinationSecurityGroupId: !Ref WebTierSecuityGroup
+              FromPort: 80
+              ToPort: 80
+              IpProtocol: tcp
+            - DestinationSecurityGroupId: !Ref AppTierSecuityGroup
+              FromPort: 80
+              ToPort: 80
+              IpProtocol: tcp
+          Tags:
+            - Key: Name
+              Value: app-tier
+          VpcId: !Ref VPC
+    #################################
+    #           Outputs             #
+    #################################
+Outputs:
+    WebTierSecuityGroup:
+        Value: !Ref WebTierSecuityGroup
+    AppTierSecuityGroup:
+        Value: !Ref AppTierSecuityGroup
+    DatabaseTierSecuityGroup:
+        Value: !Ref DatabaseTierSecuityGroup
+    WebTierSubnet1:
+        Value: !Ref WebTierSubnet1
+    WebTierSubnet2:
+        Value: !Ref WebTierSubnet2
+    AppTierSubnet1:
+        Value: !Ref AppTierSubnet1
+    AppTierSubnet2:
+        Value: !Ref AppTierSubnet2
+    DatabaseTierSubnet1:
+        Value: !Ref DatabaseTierSubnet1
+    DatabaseTierSubnet2:
+        Value: !Ref DatabaseTierSubnet2
+    LoadBalancerSecuityGroup:
+        Value: !Ref LoadBalancerSecuityGroup
